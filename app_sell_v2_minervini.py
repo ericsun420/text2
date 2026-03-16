@@ -13,9 +13,15 @@ import pandas as pd
 import requests
 import streamlit as st
 import urllib3
-import yfinance as yf
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+try:
+    import yfinance as yf
+    HAS_YF = True
+except Exception:
+    yf = None
+    HAS_YF = False
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -166,7 +172,7 @@ def get_stock_list():
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def yf_download_daily(symbols, period="420d"):
-    if not symbols:
+    if not HAS_YF or not symbols:
         return pd.DataFrame()
     data = yf.download(
         tickers=" ".join(symbols),
@@ -2713,3 +2719,599 @@ def render_stock_cards(section_df: pd.DataFrame, empty_text: str):
 """,
                 unsafe_allow_html=True,
             )
+
+
+st.set_page_config(page_title=APP_TITLE, page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
+
+st.markdown(
+    """
+<style>
+:root {
+    --bg0: #040506;
+    --bg1: #0a0d11;
+    --bg2: #10141b;
+    --line: rgba(255,255,255,0.06);
+    --line2: rgba(255,255,255,0.10);
+    --txt: #f8fafc;
+    --muted: #94a3b8;
+    --cyan: #38bdf8;
+    --violet: #a78bfa;
+    --green: #22c55e;
+    --gold: #f59e0b;
+    --rose: #fb7185;
+}
+[data-testid="stAppViewContainer"], .main {
+    background:
+        radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.10), transparent 24%),
+        radial-gradient(circle at 85% 18%, rgba(167, 139, 250, 0.11), transparent 20%),
+        radial-gradient(circle at 40% 85%, rgba(34, 197, 94, 0.07), transparent 18%),
+        linear-gradient(180deg, #040506 0%, #080a0d 35%, #0b0f14 100%) !important;
+    color: var(--txt) !important;
+}
+.block-container {max-width: 1380px; padding-top: 1.6rem; padding-bottom: 3.0rem;}
+[data-testid="stSidebar"] {display: none !important;}
+.hero-wrap {
+    padding: 20px 0 14px 0;
+    margin-bottom: 8px;
+}
+.hero-title {
+    font-size: 60px;
+    line-height: 1.0;
+    font-weight: 950;
+    letter-spacing: -2.3px;
+    background: linear-gradient(135deg, #ffffff 0%, #b8dbff 35%, #c4b5fd 72%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+    margin-top: 10px;
+    color: #8ea2b8;
+    font-size: 14px;
+    letter-spacing: 1.1px;
+}
+.glass-row {
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.55), rgba(10, 15, 23, 0.74));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 22px;
+    padding: 16px 18px;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.28);
+    margin-bottom: 14px;
+}
+.search-panel {
+    background: linear-gradient(180deg, rgba(12,17,25,0.84), rgba(8,12,18,0.95));
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 22px;
+    padding: 18px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.24);
+    margin-bottom: 14px;
+}
+.search-head-row {display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px;}
+.search-head {font-size:18px; font-weight:900; color:#f8fafc; letter-spacing:.3px;}
+.search-source {font-size:12px; color:#8ea5bb; margin-top:6px;}
+.search-good, .search-warn, .search-bad {
+    border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 900; display:inline-flex; align-items:center;
+}
+.search-good {background: rgba(34,197,94,0.14); color:#bbf7d0; border:1px solid rgba(34,197,94,0.22);}
+.search-warn {background: rgba(245,158,11,0.14); color:#fde68a; border:1px solid rgba(245,158,11,0.22);}
+.search-bad {background: rgba(251,113,133,0.12); color:#fecdd3; border:1px solid rgba(251,113,133,0.18); display:inline-flex; margin-top:8px;}
+.search-card {min-height: unset;}
+.mini-kicker {
+    display:inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(56, 189, 248, 0.20);
+    color: #8bd6ff;
+    background: rgba(56, 189, 248, 0.08);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+.card {
+    background: linear-gradient(160deg, rgba(17, 20, 26, 0.96), rgba(10, 12, 18, 0.94));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.12);
+    border-radius: 24px;
+    padding: 18px 18px 16px 18px;
+    min-height: 218px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.30);
+    transition: all .22s ease;
+}
+.card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(56, 189, 248, 0.24);
+    box-shadow: 0 22px 56px rgba(56, 189, 248, 0.10);
+}
+.card-stage {
+    display:inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    color: #c4b5fd;
+    background: rgba(167, 139, 250, 0.10);
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+.card-code {font-size: 22px; font-weight: 900; color: #ffffff; margin-top: 14px; letter-spacing: .5px;}
+.card-name {font-size: 14px; color: #9fb0c5; font-weight: 700; margin-top: 2px;}
+.card-price {font-size: 38px; font-weight: 950; color: #ffffff; margin-top: 14px; letter-spacing: -1px;}
+.card-status {font-size: 13px; color: #d8e3ef; font-weight: 700; margin-top: 10px;}
+.card-stars-wrap {display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top: 14px;}
+.card-stars {font-size: 18px; letter-spacing: 1px; font-weight: 900; color: #ffd76a;}
+.card-stars-badge {font-size: 12px; color: #09111b; background: linear-gradient(135deg, #ffe082 0%, #f6c453 100%); border-radius: 999px; padding: 5px 10px; font-weight: 900;}
+.card-grid {display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px;}
+.stat-pill {
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+}
+.stat-k {font-size: 11px; color: #8ba2b8; font-weight: 700; letter-spacing: .8px;}
+.stat-v {font-size: 15px; color: #f8fafc; font-weight: 900; margin-top: 2px;}
+
+.card-predict {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.14);
+    color: #d9f2ff;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.5;
+}
+.card-predict-note {
+    margin-top: 8px;
+    color: #8fb1c9;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.fail-bag {margin: 6px 0 4px 0;}
+.fail-tag {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 4px 6px 0 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fecdd3;
+    background: rgba(251, 113, 133, 0.08);
+    border: 1px solid rgba(251, 113, 133, 0.16);
+}
+.soft-note {
+    color: #8da3ba;
+    font-size: 12px;
+    line-height: 1.6;
+}
+[data-testid="stMetric"] {
+    background: linear-gradient(180deg, rgba(13,18,24,0.72), rgba(10,12,18,0.90));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 16px;
+}
+[data-testid="stMetricLabel"] {color: #8ea5bb !important; font-size: 13px !important; font-weight: 700 !important; letter-spacing: .6px;}
+[data-testid="stMetricValue"] {color: #f8fafc !important; font-size: 32px !important; font-weight: 950 !important;}
+.stButton>button {
+    width: 100% !important;
+    border: none !important;
+    border-radius: 18px !important;
+    min-height: 58px !important;
+    font-size: 18px !important;
+    font-weight: 950 !important;
+    letter-spacing: 1.2px !important;
+    color: #09111a !important;
+    background: linear-gradient(135deg, #ffffff 0%, #b8dbff 48%, #c4b5fd 100%) !important;
+    box-shadow: 0 16px 44px rgba(56, 189, 248, 0.16) !important;
+}
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 50px rgba(56, 189, 248, 0.22) !important;
+}
+[data-testid="stExpander"] {
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    border-radius: 18px !important;
+    background: rgba(10, 14, 20, 0.46) !important;
+}
+[data-testid="stExpander"] summary {
+    border-radius: 18px !important;
+    background: rgba(255,255,255,0.02) !important;
+}
+[data-testid="stDataFrame"] {
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    background: linear-gradient(180deg, rgba(10,14,20,0.78), rgba(8,11,16,0.95)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 40px rgba(0,0,0,0.22) !important;
+}
+[data-testid="stDataFrame"] [role="grid"] {
+    background: transparent !important;
+}
+
+.log-panel {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(10,14,20,0.92), rgba(7,10,14,0.98));
+    padding: 10px 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.log-row {
+    display:flex; align-items:flex-start; gap:10px;
+    padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.log-row:last-child {border-bottom:none;}
+.log-tag {
+    min-width: 42px; text-align:center;
+    border-radius: 999px; padding: 3px 8px;
+    background: rgba(251,113,133,0.10); color:#fecdd3;
+    border:1px solid rgba(251,113,133,0.16); font-size:11px; font-weight:800;
+}
+.log-msg {
+    flex:1; color:#d7e5f4; font-size:13px; line-height:1.55;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    word-break: break-word;
+}
+.log-count {
+    color:#93c5fd; background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.18);
+    border-radius:999px; padding:3px 8px; font-size:11px; font-weight:900;
+}
+.bt-wrap {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(9,13,19,0.96), rgba(6,9,13,0.99));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 44px rgba(0,0,0,0.26);
+    overflow: hidden;
+}
+.bt-table-scroll {
+    overflow-x: auto;
+}
+.bt-table {
+    width: 100%;
+    min-width: 1120px;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+.bt-table thead th {
+    position: sticky; top: 0; z-index: 2;
+    text-align: left;
+    padding: 13px 12px;
+    background: linear-gradient(180deg, rgba(18,24,34,0.98), rgba(13,18,26,0.98));
+    color: #9fb7cf;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.bt-table tbody td {
+    padding: 12px;
+    color: #edf4fb;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bt-table tbody tr:nth-child(odd) td {background: rgba(255,255,255,0.015);}
+.bt-table tbody tr:nth-child(even) td {background: rgba(255,255,255,0.028);}
+.bt-table tbody tr:hover td {background: rgba(56,189,248,0.08);}
+.bt-table td.num {text-align: right; font-variant-numeric: tabular-nums;}
+.ret-chip {
+    display:inline-flex; align-items:center; justify-content:center; min-width:82px;
+    border-radius:999px; padding:5px 10px; font-weight:900; letter-spacing:.2px;
+}
+.ret-strong {background: rgba(34,197,94,0.18); color:#bbf7d0; border:1px solid rgba(34,197,94,0.22);}
+.ret-pos {background: rgba(74,222,128,0.12); color:#dcfce7; border:1px solid rgba(74,222,128,0.18);}
+.ret-flat {background: rgba(148,163,184,0.10); color:#e2e8f0; border:1px solid rgba(148,163,184,0.14);}
+.ret-neg {background: rgba(251,113,133,0.12); color:#ffe4e6; border:1px solid rgba(251,113,133,0.18);}
+.ret-weak {background: rgba(244,63,94,0.20); color:#fff1f2; border:1px solid rgba(244,63,94,0.24);}
+
+hr {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 20px 0;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    f"""
+<div class="hero-wrap">
+  <div class="mini-kicker">MOMENTUM WAR ROOM</div>
+  <div class="hero-title">{APP_TITLE}</div>
+  <div class="hero-sub">{APP_SUBTITLE}</div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+with st.container():
+    st.markdown('<div class="glass-row">', unsafe_allow_html=True)
+    cfg1, cfg2, cfg3 = st.columns([1.2, 1.2, 1.0])
+    with cfg1:
+        is_test = st.toggle("🔥 放寬標準模式", value=False, help="現在改成真的只是放寬，不再是幾乎全部放行。")
+    with cfg2:
+        use_bloodline = st.toggle("🛡️ 連續大漲加分", value=True, help="會更看重過去曾連續大漲的股票，但不再直接一刀砍掉新起漲股。")
+    with cfg3:
+        only_tse = False
+    min_board = DEFAULT_MIN_BOARD
+    hold_days = DEFAULT_HOLD_DAYS
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="glass-row">', unsafe_allow_html=True)
+launch_col, api_col = st.columns([1.5, 1.2])
+with launch_col:
+    launch = st.button("🚀 取得最新市場資料 / 建立快速資料庫")
+with api_col:
+    api_key = get_api_key()
+    if api_key:
+        st.success("✅ 已偵測到 Fugle API Key")
+    else:
+        st.warning("⚠️ 尚未偵測到 Fugle API Key，將無法抓取最新官方資料。")
+    if not HAS_YF:
+        st.info("ℹ️ 目前環境沒有 yfinance，App 仍可開啟，但歷史資料、Stage2細節、續漲預測與回測會降級。")
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="glass-row">', unsafe_allow_html=True)
+search_col, search_btn_col = st.columns([3.6, 1.2])
+with search_col:
+    search_query = st.text_input(
+        "獨立搜尋",
+        value=st.session_state.get("independent_search_query", ""),
+        placeholder="輸入股票代號或名稱，例如 8299、群聯、華邦電",
+        help="不受清單限制，直接指定一支股票來算算看它的分數。",
+        label_visibility="collapsed",
+    )
+with search_btn_col:
+    search_launch = st.button("🔎 搜尋個股評分", use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+if search_launch:
+    st.session_state["independent_search_query"] = search_query
+    api_key_search = get_api_key()
+    meta_search, meta_errors = get_stock_list()
+    if not api_key_search:
+        st.session_state["independent_search_result"] = {
+            "ok": False,
+            "kind": "not_found",
+            "message": "找不到 Fugle API Key，無法執行獨立搜尋評分。",
+            "matches": [],
+        }
+    elif not meta_search:
+        st.session_state["independent_search_result"] = {
+            "ok": False,
+            "kind": "not_found",
+            "message": "股票清單讀取失敗，請稍後再試。",
+            "matches": [],
+        }
+    else:
+        try:
+            with st.status("🔎 搜尋指定股票並套用同一套評分模型...", expanded=False):
+                st.session_state["independent_search_result"] = evaluate_single_search(
+                    query=search_query,
+                    meta_dict=meta_search,
+                    api_key=api_key_search,
+                    now_ts=now_taipei(),
+                    is_test=is_test,
+                    use_bloodline=use_bloodline,
+                    min_board=min_board,
+                    vault=st.session_state.get("raw_data_vault_v12"),
+                )
+        except Exception as e:
+            st.session_state["independent_search_result"] = {
+                "ok": False,
+                "kind": "not_found",
+                "message": f"搜尋評分失敗：{e}",
+                "matches": [],
+            }
+
+search_result = st.session_state.get("independent_search_result")
+if search_result:
+    render_search_result_box(search_result)
+
+now_epoch = time.time()
+last_run = st.session_state.get("last_run_ts", 0)
+
+if launch:
+    if not api_key:
+        st.error("🚨 找不到 Fugle API Key，請先設定後再啟動。")
+    elif now_epoch - last_run < DEFAULT_COOLDOWN_SECONDS:
+        remain = int(DEFAULT_COOLDOWN_SECONDS - (now_epoch - last_run))
+        st.warning(f"⏳ 保護機制啟動中，請約 {remain} 秒後再重新抓取資料。")
+    else:
+        st.session_state["last_run_ts"] = now_epoch
+        base_diag = diag_init()
+        t_all = time.perf_counter()
+
+        with st.status("⚡ 準備整理最新市場資訊...", expanded=True) as status:
+            t0 = time.perf_counter()
+            meta, meta_errors = get_stock_list()
+            base_diag["t_meta"] = time.perf_counter() - t0
+            base_diag["meta_count"] = len(meta)
+            for e in meta_errors:
+                diag_err(base_diag, Exception(e), "META")
+
+            candidate_df = pd.DataFrame()
+            ranked_codes = []
+
+            try:
+                status.update(label="🌐 優先嘗試抓取官方全市場資料...", state="running")
+                candidate_df, ranked_codes = fetch_market_snapshot_and_rank(meta, api_key, base_diag, status)
+            except Exception as e:
+                diag_err(base_diag, e, "SNAPSHOT_PRIMARY")
+                status.update(label="🟡 官方快照無法使用，切換到網路排行榜並一檔一檔抓資料...", state="running")
+                candidate_df, ranked_codes = fetch_candidate_rows_by_public_rank(meta, api_key, base_diag, status)
+
+            if candidate_df.empty:
+                status.update(label="❌ 無法取得股票資料，請檢查網路連線或 API 設定。", state="error")
+                st.stop()
+
+            feature_cache, raw_daily = compute_feature_cache(candidate_df, meta, base_diag, status, period=f"{RAW_HISTORY_DAYS}d")
+
+            now_ts = now_taipei()
+            pre_res, _, pre_diag = apply_dynamic_filters(
+                raw_df=candidate_df,
+                feature_cache=feature_cache,
+                now_ts=now_ts,
+                is_test=is_test,
+                use_bloodline=use_bloodline,
+                only_tse=only_tse,
+                min_board=min_board,
+                base_diag=base_diag,
+            )
+
+            enrich_codes = stable_unique(
+                (pre_res["代號"].head(FINAL_ENRICH_LIMIT).tolist() if not pre_res.empty else [])
+                + candidate_df.sort_values(["dist", "vol_sh"], ascending=[True, False])["code"].head(FINAL_ENRICH_LIMIT).tolist()
+            )[:FINAL_ENRICH_LIMIT]
+
+            if enrich_codes:
+                status.update(label="🧠 補強重點候選名單的買賣排隊狀況...", state="running")
+                t_enrich = time.perf_counter()
+                session = make_retry_session()
+                enrich_map = enrich_quotes_for_codes(session, api_key, enrich_codes, base_diag)
+                base_diag["t_enrich"] = time.perf_counter() - t_enrich
+                if enrich_map:
+                    for k, v in enrich_map.items():
+                        for field, value in v.items():
+                            candidate_df.loc[candidate_df["code"] == k, field] = value
+            else:
+                base_diag["t_enrich"] = 0.0
+
+            base_diag["total"] = time.perf_counter() - t_all
+            status.update(label="✅ 資料庫已建立完成。之後切換開關不需要重抓，會直接用現有資料運算。", state="complete")
+
+        st.session_state["raw_data_vault_v12"] = {
+            "meta": meta,
+            "candidate_df": candidate_df,
+            "feature_cache": feature_cache,
+            "raw_daily": raw_daily,
+            "ranked_codes": ranked_codes,
+            "base_diag": base_diag,
+            "ts": now_taipei(),
+        }
+
+if "raw_data_vault_v12" in st.session_state:
+    vault = st.session_state["raw_data_vault_v12"]
+    t_filter = time.perf_counter()
+    res, stats, final_diag = apply_dynamic_filters(
+        raw_df=vault["candidate_df"],
+        feature_cache=vault["feature_cache"],
+        now_ts=vault["ts"],
+        is_test=is_test,
+        use_bloodline=use_bloodline,
+        only_tse=only_tse,
+        min_board=min_board,
+        base_diag=vault["base_diag"],
+    )
+
+    if not res.empty:
+        res = attach_continuation_prediction(
+            res_df=res,
+            raw_daily=vault["raw_daily"],
+            meta_dict=vault["meta"],
+        )
+
+    final_diag["t_filter"] = time.perf_counter() - t_filter
+
+    bt_t0 = time.perf_counter()
+    bt_universe = pick_backtest_universe(vault["candidate_df"], top_n=28)
+    bt_df, bt_stats = run_surrogate_backtest(
+        raw_daily=vault["raw_daily"],
+        universe_codes=bt_universe,
+        meta_dict=vault["meta"],
+        lookback_days=126,
+        hold_days=hold_days,
+        use_bloodline=use_bloodline,
+        min_board=min_board,
+        is_test=is_test,
+    )
+    final_diag["t_backtest"] = time.perf_counter() - bt_t0
+
+    ts = vault["ts"]
+    state_str = f"放寬模式 {'開啟' if is_test else '關閉'} ｜ 連續大漲加分 {'開啟' if use_bloodline else '關閉'} ｜ Stage2模板 預設開啟"
+    st.markdown(
+        f"<div class='soft-note'>資料時間：{ts.strftime('%Y-%m-%d %H:%M:%S')}（台灣時間）｜{state_str}｜重新篩選只花：{final_diag['t_filter']:.3f}秒</div>",
+        unsafe_allow_html=True,
+    )
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("初始清單數量", f"{final_diag.get('candidate_count', 0)} 檔", f"資料來源：{final_diag.get('rank_src', '未知')}")
+    m2.metric("通過嚴格標準", f"{len(res)} 檔", f"成功取得即時資料數：{final_diag.get('snapshot_ok', 0)}")
+    coverage = f"{final_diag.get('feature_ok', 0)} / {final_diag.get('candidate_count', 0)}"
+    m3.metric("歷史資料庫完整度", coverage, f"成功下載過去資料數：{final_diag.get('yf_returned', 0)}")
+    m4.metric("歷史模擬勝率", f"{bt_stats['win_rate']}%", f"過去出現過的機會：{bt_stats['signals']} 次")
+
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    if not res.empty and "模式分級" not in res.columns:
+        if "分級" in res.columns:
+            res["模式分級"] = res["分級"].fillna("C級候補")
+        else:
+            res["模式分級"] = "C級候補"
+
+    if not res.empty:
+        if "入選理由" not in res.columns:
+            res["入選理由"] = res.apply(build_reason_tags, axis=1)
+        else:
+            res["入選理由"] = res.apply(build_reason_tags, axis=1)
+        # 族群共振在這一版正式吃進主評分後，再依新分數重排一次
+        if "模式排序分" in res.columns:
+            res = res.sort_values(
+                ["模式分級", "模式排序分", "今日表現分數", "起漲雷達分數"],
+                ascending=[True, False, False, False]
+            ).reset_index(drop=True)
+
+    a_df = res[res["模式分級"] == "A級焦點"].copy() if not res.empty else pd.DataFrame()
+    b_df = res[res["模式分級"] == "B級觀察"].copy() if not res.empty else pd.DataFrame()
+    c_df = res[res["模式分級"] == "C級候補"].copy() if not res.empty else pd.DataFrame()
+
+    fallback_badges = []
+    if not a_df.empty and "保底補位" in a_df.columns and (a_df["保底補位"] != "").any():
+        fallback_badges.append("A 含保底補位")
+    if not b_df.empty and "保底補位" in b_df.columns and (b_df["保底補位"] != "").any():
+        fallback_badges.append("B 含保底補位")
+    extra_note = f"｜{' / '.join(fallback_badges)}" if fallback_badges else ""
+    st.caption(f"目前分布｜A級 {len(a_df)} 檔 ｜ B級 {len(b_df)} 檔 ｜ C級 {len(c_df)} 檔{extra_note}")
+    if not res.empty and "產業" in res.columns:
+        group_df = res[res["模式分級"].isin(["A級焦點", "B級觀察", "C級候補"])].copy()
+        if not group_df.empty:
+            industry_top = group_df.groupby("產業")["同族群跟漲數"].max().sort_values(ascending=False)
+            strong_groups = [f"{ind} 跟漲{cnt}檔" for ind, cnt in industry_top.items() if cnt >= 1][:4]
+            if strong_groups:
+                st.caption("同產業同步發動｜" + " / ".join(strong_groups))
+
+    st.subheader("A級焦點")
+    render_stock_cards(a_df, "今天暫時沒有衝到 A 級焦點的股票。")
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("B級觀察")
+    st.caption("這區是最接近你要的『起漲第一根 / 準發動』核心名單，優先看這區。")
+    render_stock_cards(b_df, "今天暫時沒有落在 B 級觀察的股票。")
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("C級候補")
+    st.caption("這區不再把剩下全部股票都塞進來，只保留少量仍有起漲味道、但還需要再確認的候補。")
+    render_stock_cards(c_df, "今天暫時沒有落在 C 級候補的股票。")
+
+    with st.expander("🧪 歷史模擬測試 (過去126天)", expanded=False):
+        st.caption("這個功能是拿過去 126 天的資料來算算看，如果照這套嚴格標準來找股票勝率如何。這只是模擬，不保證未來一定賺錢喔。")
+        b1, b2, b3, b4, b5 = st.columns(5)
+        b1.metric("出現機會數", bt_stats["signals"])
+        b2.metric("模擬勝率", f"{bt_stats['win_rate']}%")
+        b3.metric("平均獲利", f"{bt_stats['avg_return']}%")
+        b4.metric("中位數獲利", f"{bt_stats['median_return']}%")
+        b5.metric("最佳 / 最差表現", f"{bt_stats['best']}% / {bt_stats['worst']}%")
+        if not bt_df.empty:
+            bt_show = make_backtest_display(bt_df)
+            render_backtest_table(bt_show)
+            st.caption("表格調整為方便閱讀的深色模式，數字靠右對齊、漲跌用顏色區分，看久了眼睛比較不會累。")
+        else:
+            st.info("過去 126 天內，這些股票沒有發生符合你所設定條件的情況。可能你的條件訂得太嚴格了，或是選到的清單剛好近期表現平淡。")
+
+else:
+    st.info("請先點擊上方按鈕建立最新的資料庫！之後如果想要調整條件，只要切換上方的開關，系統就會用原有的資料瞬間重新幫你計算。")
