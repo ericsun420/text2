@@ -3081,13 +3081,21 @@ with api_col:
         st.info("ℹ️ 目前環境沒有 yfinance，App 仍可開啟，但歷史資料、Stage2細節、續漲預測與回測會降級。")
 st.markdown('</div>', unsafe_allow_html=True)
 
+if "independent_search_text" not in st.session_state:
+    st.session_state["independent_search_text"] = ""
+if "independent_search_widget_version" not in st.session_state:
+    st.session_state["independent_search_widget_version"] = 0
+
+search_widget_key = f"independent_search_query_{st.session_state['independent_search_widget_version']}"
+
 st.markdown('<div class="glass-row">', unsafe_allow_html=True)
 with st.form("independent_search_form", clear_on_submit=False):
     search_col, search_btn_col, clear_btn_col = st.columns([3.4, 1.15, 0.75])
     with search_col:
         search_query = st.text_input(
             "獨立搜尋",
-            key="independent_search_query",
+            value=st.session_state.get("independent_search_text", ""),
+            key=search_widget_key,
             placeholder="輸入股票代號或名稱，例如 8299、群聯、華邦電",
             help="不受清單限制，直接指定一支股票來算算看它的分數。按 Enter 也能直接搜尋。",
             label_visibility="collapsed",
@@ -3101,12 +3109,14 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 vault_for_search = st.session_state.get("raw_data_vault_v12")
 if clear_search:
-    st.session_state["independent_search_query"] = ""
+    st.session_state["independent_search_text"] = ""
+    st.session_state["independent_search_widget_version"] += 1
     st.session_state.pop("independent_search_result", None)
     st.rerun()
 
 if search_launch:
-    search_query = str(st.session_state.get("independent_search_query", "")).strip()
+    search_query = str(search_query or "").strip()
+    st.session_state["independent_search_text"] = search_query
     api_key_search = get_api_key()
     meta_search, meta_errors = get_meta_for_search(vault_for_search)
     if not search_query:
