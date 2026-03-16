@@ -28,8 +28,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ============================================================
 # 基本設定
 # ============================================================
-APP_TITLE = "起漲戰情室 OMEGA"
-APP_SUBTITLE = "v13.3 族群強化版｜首根雷達｜族群共振｜歷史模擬"
+APP_TITLE = "OMEGA 趨勢起漲戰情室"
+APP_SUBTITLE = "v13.4 Stage 2 趨勢模板｜起漲雷達｜族群共振｜風控交易"
 FUGLE_API_KEY = "ZWJjZDhjZWYtMjhhMi00YWI2LTliNWQtMmViYzVhMmIzODdjIGY1N2Y0MGZmLWQ1MjgtNDk1OC1iZTljLWMxOWUwODQ4Y2U2Zg=="
 API_TIMEOUT = (3.0, 10.0)
 PUBLIC_TIMEOUT = (3.0, 12.0)
@@ -3020,7 +3020,7 @@ hr {
 st.markdown(
     f"""
 <div class="hero-wrap">
-  <div class="mini-kicker">MOMENTUM WAR ROOM</div>
+  <div class="mini-kicker">OMEGA TREND WAR ROOM</div>
   <div class="hero-title">{APP_TITLE}</div>
   <div class="hero-sub">{APP_SUBTITLE}</div>
 </div>
