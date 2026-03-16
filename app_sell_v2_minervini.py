@@ -2906,21 +2906,34 @@ st.markdown(
 }
 [data-testid="stMetricLabel"] {color: #8ea5bb !important; font-size: 13px !important; font-weight: 700 !important; letter-spacing: .6px;}
 [data-testid="stMetricValue"] {color: #f8fafc !important; font-size: 32px !important; font-weight: 950 !important;}
-.stButton>button {
+.stButton>button,
+div[data-testid="stFormSubmitButton"] > button {
     width: 100% !important;
-    border: none !important;
+    border: 1px solid rgba(125, 211, 252, 0.22) !important;
     border-radius: 18px !important;
     min-height: 58px !important;
     font-size: 18px !important;
-    font-weight: 950 !important;
-    letter-spacing: 1.2px !important;
-    color: #09111a !important;
-    background: linear-gradient(135deg, #ffffff 0%, #b8dbff 48%, #c4b5fd 100%) !important;
-    box-shadow: 0 16px 44px rgba(56, 189, 248, 0.16) !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.6px !important;
+    color: #eef6ff !important;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(18, 52, 86, 0.96) 52%, rgba(76, 29, 149, 0.94) 100%) !important;
+    box-shadow: 0 14px 34px rgba(14, 165, 233, 0.16) !important;
+    transition: all .18s ease !important;
+    opacity: 1 !important;
 }
-.stButton>button:hover {
+.stButton>button:hover,
+div[data-testid="stFormSubmitButton"] > button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 22px 50px rgba(56, 189, 248, 0.22) !important;
+    border-color: rgba(147, 197, 253, 0.36) !important;
+    box-shadow: 0 18px 42px rgba(14, 165, 233, 0.24) !important;
+    color: #ffffff !important;
+}
+.stButton>button:disabled,
+div[data-testid="stFormSubmitButton"] > button:disabled {
+    color: #dbeafe !important;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(30, 58, 95, 0.96) 100%) !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+    opacity: 1 !important;
 }
 [data-testid="stExpander"] {
     border: 1px solid rgba(255,255,255,0.06) !important;
