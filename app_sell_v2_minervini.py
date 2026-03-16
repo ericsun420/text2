@@ -1655,8 +1655,9 @@ def evaluate_single_search(query, meta_dict, api_key, now_ts, is_test, use_blood
                 "kind": "ambiguous",
                 "message": "找到多個類似的目標，請輸入更完整的股票代號或名稱。",
                 "matches": [{"code": c, "name": meta_dict[c]["name"], "market": market_label(meta_dict[c]["market"])} for c in matches],
+                "searched_query": q,
             }
-        return {"ok": False, "kind": "not_found", "message": "找不到這支股票，請確認代號或名稱是否正確。", "matches": []}
+        return {"ok": False, "kind": "not_found", "message": "找不到這支股票，請確認代號或名稱是否正確。", "matches": [], "searched_query": q}
 
     row = None
     feat = None
@@ -1750,8 +1751,17 @@ def evaluate_single_search(query, meta_dict, api_key, now_ts, is_test, use_blood
         "market": market_label(meta_dict[code]["market"]),
         "assessment": assessment,
         "source": " / ".join(source),
+        "searched_query": q,
     }
 
+
+
+def get_meta_for_search(vault=None):
+    if isinstance(vault, dict):
+        meta = vault.get("meta")
+        if isinstance(meta, dict) and meta:
+            return meta, []
+    return get_stock_list()
 
 
 def apply_dynamic_filters(raw_df, feature_cache, now_ts, is_test, use_bloodline, only_tse, min_board, base_diag):
@@ -2598,13 +2608,15 @@ def render_search_result_box(search_result):
                 f"<span class='fail-tag'>{html.escape(m['code'])} {html.escape(m['name'])}｜{html.escape(m['market'])}</span>"
                 for m in search_result.get("matches", [])
             ])
+            searched = html.escape(str(search_result.get("searched_query", "")))
             st.markdown(
-                f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-bad'>{html.escape(search_result.get('message', ''))}</div><div class='fail-bag'>{tags}</div></div>",
+                f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-source'>目前查詢：{searched}</div><div class='search-bad'>{html.escape(search_result.get('message', ''))}</div><div class='fail-bag'>{tags}</div></div>",
                 unsafe_allow_html=True,
             )
         else:
+            searched = html.escape(str(search_result.get("searched_query", "")))
             st.markdown(
-                f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-bad'>{html.escape(search_result.get('message', ''))}</div></div>",
+                f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-source'>目前查詢：{searched}</div><div class='search-bad'>{html.escape(search_result.get('message', ''))}</div></div>",
                 unsafe_allow_html=True,
             )
         return
@@ -2612,8 +2624,9 @@ def render_search_result_box(search_result):
     assess = search_result.get("assessment") or {}
     item = assess.get("item") or {}
     if not item:
+        searched = html.escape(str(search_result.get("searched_query", "")))
         st.markdown(
-            f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-bad'>{html.escape(assess.get('reason_text', '目前資料庫沒這支股票的完整數據。'))}</div></div>",
+            f"<div class='search-panel'><div class='search-head'>獨立搜尋結果</div><div class='search-source'>目前查詢：{searched}</div><div class='search-bad'>{html.escape(assess.get('reason_text', '目前資料庫沒這支股票的完整數據。'))}</div></div>",
             unsafe_allow_html=True,
         )
         return
@@ -3056,36 +3069,57 @@ with api_col:
 st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="glass-row">', unsafe_allow_html=True)
-search_col, search_btn_col = st.columns([3.6, 1.2])
-with search_col:
-    search_query = st.text_input(
-        "獨立搜尋",
-        value=st.session_state.get("independent_search_query", ""),
-        placeholder="輸入股票代號或名稱，例如 8299、群聯、華邦電",
-        help="不受清單限制，直接指定一支股票來算算看它的分數。",
-        label_visibility="collapsed",
-    )
-with search_btn_col:
-    search_launch = st.button("🔎 搜尋個股評分", use_container_width=True)
+with st.form("independent_search_form", clear_on_submit=False):
+    search_col, search_btn_col, clear_btn_col = st.columns([3.4, 1.15, 0.75])
+    with search_col:
+        search_query = st.text_input(
+            "獨立搜尋",
+            key="independent_search_query",
+            placeholder="輸入股票代號或名稱，例如 8299、群聯、華邦電",
+            help="不受清單限制，直接指定一支股票來算算看它的分數。按 Enter 也能直接搜尋。",
+            label_visibility="collapsed",
+        )
+    with search_btn_col:
+        search_launch = st.form_submit_button("🔎 搜尋個股評分", use_container_width=True)
+    with clear_btn_col:
+        clear_search = st.form_submit_button("清除", use_container_width=True)
+st.caption("輸入後按 Enter 也可直接搜尋；清除會一起移除目前結果。")
 st.markdown('</div>', unsafe_allow_html=True)
 
+vault_for_search = st.session_state.get("raw_data_vault_v12")
+if clear_search:
+    st.session_state["independent_search_query"] = ""
+    st.session_state.pop("independent_search_result", None)
+    st.rerun()
+
 if search_launch:
-    st.session_state["independent_search_query"] = search_query
+    search_query = str(st.session_state.get("independent_search_query", "")).strip()
     api_key_search = get_api_key()
-    meta_search, meta_errors = get_stock_list()
-    if not api_key_search:
+    meta_search, meta_errors = get_meta_for_search(vault_for_search)
+    if not search_query:
+        st.session_state["independent_search_result"] = {
+            "ok": False,
+            "kind": "not_found",
+            "message": "請先輸入股票代號或名稱。",
+            "matches": [],
+            "searched_query": search_query,
+        }
+    elif not api_key_search:
         st.session_state["independent_search_result"] = {
             "ok": False,
             "kind": "not_found",
             "message": "找不到 Fugle API Key，無法執行獨立搜尋評分。",
             "matches": [],
+            "searched_query": search_query,
         }
     elif not meta_search:
+        err_text = meta_errors[0] if meta_errors else "股票清單讀取失敗，請稍後再試。"
         st.session_state["independent_search_result"] = {
             "ok": False,
             "kind": "not_found",
-            "message": "股票清單讀取失敗，請稍後再試。",
+            "message": err_text,
             "matches": [],
+            "searched_query": search_query,
         }
     else:
         try:
@@ -3098,7 +3132,7 @@ if search_launch:
                     is_test=is_test,
                     use_bloodline=use_bloodline,
                     min_board=min_board,
-                    vault=st.session_state.get("raw_data_vault_v12"),
+                    vault=vault_for_search,
                 )
         except Exception as e:
             st.session_state["independent_search_result"] = {
@@ -3106,6 +3140,7 @@ if search_launch:
                 "kind": "not_found",
                 "message": f"搜尋評分失敗：{e}",
                 "matches": [],
+                "searched_query": search_query,
             }
 
 search_result = st.session_state.get("independent_search_result")
