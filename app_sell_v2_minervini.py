@@ -1647,7 +1647,8 @@ def attach_continuation_prediction(res_df, raw_daily, meta_dict):
 
 
 def evaluate_single_search(query, meta_dict, api_key, now_ts, is_test, use_bloodline, min_board, vault=None):
-    code, matches = resolve_stock_query(query, meta_dict)
+    q = str(query or "").strip()
+    code, matches = resolve_stock_query(q, meta_dict)
     if not code:
         if matches:
             return {
